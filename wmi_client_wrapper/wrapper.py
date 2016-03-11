@@ -1,12 +1,12 @@
 """
 Houses the wrapper for wmi-client.
-
 There are a handful of injection vulnerabilities in this, so don't expose it
 directly to end-users.
 """
 
 import csv
 import sh
+import os
 from StringIO import StringIO
 
 class WmiClientWrapper(object):
@@ -14,12 +14,15 @@ class WmiClientWrapper(object):
     Wrap wmi-client. Creating an instance of the wrapper will make a security
     context through which all future queries will be executed. It's basically
     just a convenient way to remember the username, password and host.
-
     There are a handful of injection vulnerabilities in this, so don't expose
     it directly to end-users.
     """
 
-    def __init__(self, username="Administrator", password=None, host=None, delimiter="\01"):
+    def __init__(self, username="Administrator", password=None, host=None, delimiter="|",
+                 workgroup=None, namespace="root\CIMV2", authenticationfile=None, debuglevel=None,
+                 debugstderr=None, scope=None, kerberos=None, logbasename=None, leakreport=None,
+                 maxprotocol=None, netbiosname=None):
+
         assert username
         assert password
         assert host # assume host is up
@@ -30,6 +33,17 @@ class WmiClientWrapper(object):
         self.host = host
 
         self.delimiter = delimiter
+        self.workgroup = workgroup
+        self.namespace = namespace
+        self.authenticationfile = authenticationfile
+        self.debuglevel = debuglevel
+        self.debugstderr = debugstderr
+        self.scope = scope
+        self.kerberos = kerberos
+        self.logbasename = logbasename
+        self.leakreport = leakreport
+        self.maxprotocol = maxprotocol
+        self.netbiosname = netbiosname
 
     def _make_credential_args(self):
         """
@@ -40,10 +54,16 @@ class WmiClientWrapper(object):
 
         # the format is user%pass
         # NOTE: this is an injection vulnerability
-        userpass = "--user={username}%{password}".format(
+        # userpass = "--user={username}%{password}".format(
+        #     username=self.username,
+        #     password=self.password,
+        # )
+
+        userpass = "--user='{username}' --password='{password}'".format(
             username=self.username,
             password=self.password,
         )
+
 
         arguments.append(userpass)
 
@@ -58,7 +78,80 @@ class WmiClientWrapper(object):
         """
         Makes extra configuration that gets passed to wmic.
         """
-        return ["--delimiter={delimiter}".format(delimiter=self.delimiter)]
+
+        arguments = []
+
+
+
+        # AUTHENTICATION FILE
+        if self.authenticationfile is not None:
+            authenticationfile_str = "--authentication-file='{authenticationfile}'".format(authenticationfile=self.authenticationfile)
+            arguments.append(authenticationfile_str)
+
+        # DELIMITER
+        if self.delimiter is not None:
+            delimiter_str = "--delimiter='{delimiter}'".format(delimiter=self.delimiter)
+            arguments.append(delimiter_str)
+
+        # DEBUG LEVEL
+        if self.debuglevel is not None:
+            debuglevel_str = "--debuglevel='{debuglevel}'".format(debuglevel=self.debuglevel)
+            arguments.append(debuglevel_str)
+
+        # DEBUG LEVEL
+        if self.debugstderr is not None:
+            debugstderr_str = "--debug-stderr='{debugstderr}'".format(debugstderr=self.debugstderr)
+            arguments.append(debugstderr_str)
+
+        # SCOPE
+        if self.scope is not None:
+            scope_str = "--scope='{scope}'".format(scope=self.scope)
+            arguments.append(scope_str)
+
+        # KERBEROS
+        if self.kerberos is not None:
+            kerberos_str = "--kerberos='{kerberos}'".format(kerberos=self.kerberos)
+            arguments.append(kerberos_str)
+
+        # LOG BASENAME --log-basename
+        if self.logbasename is not None:
+            logbasename_str = "--log-basename='{logbasename}'".format(logbasename=self.logbasename)
+            arguments.append(logbasename_str)
+
+        # LEAK REPORT leak-report
+        if self.leakreport is not None:
+            leakreport_str = "--leak-report='{leakreport}'".format(leakreport=self.leakreport)
+            arguments.append(leakreport_str)
+
+        # MAX PROTOCOL maxprotocol
+        if self.maxprotocol is not None:
+            maxprotocol_str = "--maxprotocol='{maxprotocol}'".format(maxprotocol=self.maxprotocol)
+            arguments.append(maxprotocol_str)
+
+        # NAMESPACE
+        if self.namespace is not None:
+            namespace_str = "--namespace='{namespace}'".format(namespace=self.namespace)
+            print namespace_str
+            arguments.append(namespace_str)
+
+        # NETBIOSNAME
+        if self.netbiosname is not None:
+            netbiosname_str = "--netbiosname='{netbiosname}'".format(netbiosname=self.netbiosname)
+            print netbiosname_str
+            arguments.append(netbiosname_str)
+
+        # WORKGROUP
+        if self.workgroup is not None:
+            workgroup_str = "--workgroup='{workgroup}'".format(workgroup=self.workgroup)
+            arguments.append(workgroup_str)
+
+
+
+
+        arguments = ' '.join(arguments)
+
+
+        return arguments
 
     def _construct_query(self, klass):
         """
@@ -73,7 +166,7 @@ class WmiClientWrapper(object):
         Executes a query using the wmi-client command.
         """
         # i don't want to have to repeat the -U stuff
-        credentials = self._make_credential_args()
+        credentials = ' '.join(self._make_credential_args())
 
         # Let's make the query construction independent, but also if there's a
         # space then it's probably just a regular query.
@@ -85,20 +178,32 @@ class WmiClientWrapper(object):
         # and these are just configuration
         setup = self._setup_params()
 
+
+        queryx_str = ''.join(queryx)
+
+
         # construct the arguments to wmic
-        arguments = setup + credentials + [queryx]
 
-        # execute the command
-        output = sh.wmic(*arguments)
+        arguments = credentials + " " + setup + " " +queryx_str
 
-        # just to be sure? sh is weird sometimes.
-        output = str(output)
+        print "Arguments:"
+        print arguments
+
+
+        #output = os.system("/bin/wmic " + arguments)
+
+        output = ""
+
+        f=os.popen("/bin/wmic " + arguments)
+        for i in f.readlines():
+            print i
+            output = output + i
 
         # and now parse the output
         return WmiClientWrapper._parse_wmic_output(output, delimiter=self.delimiter)
 
     @classmethod
-    def _parse_wmic_output(cls, output, delimiter="\01"):
+    def _parse_wmic_output(cls, output, delimiter="|"):
         """
         Parses output from the wmic command and returns json.
         """
@@ -146,9 +251,7 @@ class WmiClientWrapper(object):
         The dictionary doesn't exactly match the traditional python-wmi output.
         For example, there's "True" instead of True. Integer values are also
         quoted. Values that should be "None" are "(null)".
-
         This can be fixed by walking the tree.
-
         The Windows API is able to return the types, but here we're just
         guessing randomly. But guessing should work in most cases. There are
         some instances where a value might happen to be an integer but has
