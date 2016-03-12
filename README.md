@@ -4,7 +4,12 @@ This is a wrapper around wmi-client for Linux. Apparently the python-wmi module
 uses Windows APIs to access WMI, which isn't something that is going to work on
 Linux.
 
-This fork version supports other wmic arguments.
+This fork version supports other wmic arguments like workgroup, namespace, etc.
+
+
+## Requirements
+
+wmi-client-wrapper needs wmic installed 
 
 ## installing
 
