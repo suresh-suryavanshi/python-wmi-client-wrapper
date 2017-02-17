@@ -54,15 +54,15 @@ class WmiClientWrapper(object):
 
         # the format is user%pass
         # NOTE: this is an injection vulnerability
-        # userpass = "--user={username}%{password}".format(
-        #     username=self.username,
-        #     password=self.password,
-        # )
-
-        userpass = "--user='{username}' --password='{password}'".format(
+        userpass = "--user={username}%{password}".format(
             username=self.username,
             password=self.password,
         )
+
+        # userpass = "--user='{username}' --password='{password}'".format(
+        #     username=self.username,
+        #     password=self.password,
+        # )
 
 
         arguments.append(userpass)
@@ -179,12 +179,13 @@ class WmiClientWrapper(object):
         setup = self._setup_params()
 
 
-        queryx_str = ''.join(queryx)
+        # queryx_str = ''.join(queryx)
+        queryx_str = '"{}"'.format(''.join(queryx))
 
 
         # construct the arguments to wmic
 
-        arguments = credentials + " " + setup + " " +queryx_str
+        arguments = credentials + " " + setup + " " + queryx_str
 
         print "Arguments:"
         print arguments
@@ -194,7 +195,8 @@ class WmiClientWrapper(object):
 
         output = ""
 
-        f=os.popen("/bin/wmic " + arguments)
+        # f=os.popen("/bin/wmic " + arguments)
+        f = os.popen("/usr/local/bin/wmic " + arguments)
         for i in f.readlines():
             print i
             output = output + i
