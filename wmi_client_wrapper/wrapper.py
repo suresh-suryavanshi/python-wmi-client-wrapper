@@ -131,13 +131,13 @@ class WmiClientWrapper(object):
         # NAMESPACE
         if self.namespace is not None:
             namespace_str = "--namespace='{namespace}'".format(namespace=self.namespace)
-            print namespace_str
+            # print namespace_str
             arguments.append(namespace_str)
 
         # NETBIOSNAME
         if self.netbiosname is not None:
             netbiosname_str = "--netbiosname='{netbiosname}'".format(netbiosname=self.netbiosname)
-            print netbiosname_str
+            # print netbiosname_str
             arguments.append(netbiosname_str)
 
         # WORKGROUP
@@ -187,8 +187,8 @@ class WmiClientWrapper(object):
 
         arguments = credentials + " " + setup + " " + queryx_str
 
-        print "Arguments:"
-        print arguments
+        # print "Arguments:"
+        # print arguments
 
 
         #output = os.system("/bin/wmic " + arguments)
@@ -198,7 +198,7 @@ class WmiClientWrapper(object):
         # f=os.popen("/bin/wmic " + arguments)
         f = os.popen("/usr/local/bin/wmic " + arguments)
         for i in f.readlines():
-            print i
+            # print i
             output = output + i
 
         # and now parse the output
